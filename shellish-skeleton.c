@@ -305,6 +305,23 @@ int prompt(struct command_t *command) {
   tcsetattr(STDIN_FILENO, TCSANOW, &backup_termios);
   return SUCCESS;
 }
+static void resolve_path(struct command_t *command) {
+    if (strchr(command->name, '/')) { // if the command contains / we do noot need to check path
+        execv(command->name, command->args);
+        return;
+      }
+    char *path = strdup(getenv("PATH"));// gets the enviromental value of path and alocate memory
+    if (!path) return;
+    char fullpath[1024];
+
+    for (char *dir = strtok(path, ":"); dir != NULL; dir = strtok(NULL, ":")) { // use strtok to parse the path
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, command->name); // writes the path into fullpath
+            execv(fullpath, command->args);
+        }
+
+    free(path); // free the memory
+    
+}
 
 int process_command(struct command_t *command) {
   int r;
@@ -336,7 +353,7 @@ int process_command(struct command_t *command) {
 
     // TODO: do your own exec with path resolving using execv()
     // do so by replacing the execvp call below
-    execvp(command->name, command->args); // exec+args+path
+    resolve_path(command);// use the helper function
     printf("-%s: %s: command not found\n", sysname, command->name);
     exit(127);
   } else {
@@ -345,11 +362,12 @@ int process_command(struct command_t *command) {
         
           waitpid(pid, NULL, 0);     // Makes the parent pause until the child finishes
       } else {
-          printf("[Background] pid %d\n", pid);  // the process does not wait it returns to the main loop 
+          printf("[Background] pid %d\n", pid);  // the process does not wait it returns to the main loop
       }
       return SUCCESS;
   }
 }
+
 
 int main() {
   while (1) {
