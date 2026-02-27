@@ -340,10 +340,14 @@ int process_command(struct command_t *command) {
     printf("-%s: %s: command not found\n", sysname, command->name);
     exit(127);
   } else {
-    // TODO: implement background processes here
       
-    wait(0); // wait for child process to finish
-    return SUCCESS;
+      if (!command->background) {
+        
+          waitpid(pid, NULL, 0);     // Makes the parent pause until the child finishes
+      } else {
+          printf("[Background] pid %d\n", pid);  // the process does not wait it returns to the main loop 
+      }
+      return SUCCESS;
   }
 }
 
