@@ -322,6 +322,33 @@ static void resolve_path(struct command_t *command) {
     free(path); // free the memory
     
 }
+static void rediriction_helper(struct command_t *command) {
+    FILE *file;
+    if (command->redirects[0]) {
+        file = fopen(command->redirects[0], "r"); // read from the file
+        if (!file) {
+            exit(1);
+        }
+        dup2(fileno(file), STDIN_FILENO); // use dup2 to change where descriptor poniters point to
+        fclose(file);
+    }
+    if (command->redirects[1]) {
+        file = fopen(command->redirects[1], "w");  // "opens the file in write mode
+        if (!file) {
+            exit(1);
+        }
+        dup2(fileno(file), STDOUT_FILENO);
+        fclose(file);
+    }
+    if (command->redirects[2]) {
+        file = fopen(command->redirects[2], "a");  // opens the file in append mode
+        if (!file) {
+            exit(1);
+        }
+        dup2(fileno(file), STDOUT_FILENO);
+        fclose(file);
+    }
+}
 
 int process_command(struct command_t *command) {
   int r;
@@ -353,6 +380,7 @@ int process_command(struct command_t *command) {
 
     // TODO: do your own exec with path resolving using execv()
     // do so by replacing the execvp call below
+    rediriction_helper(command);
     resolve_path(command);// use the helper function
     printf("-%s: %s: command not found\n", sysname, command->name);
     exit(127);
