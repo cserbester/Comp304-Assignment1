@@ -349,6 +349,51 @@ static void rediriction_helper(struct command_t *command) {
         fclose(file);
     }
 }
+static int run_pipeline(struct command_t *command) {
+
+    int input_fd = STDIN_FILENO;     // where the current command reads from
+    int pipe_fds[2];
+    pid_t child_pid;
+    int children = 0;
+
+    while (command != NULL) {
+        if (command->next != NULL) {
+            pipe(pipe_fds); // if  not the last command create a pipe
+        }
+        child_pid = fork();
+        if (child_pid == 0) {
+            if (input_fd != STDIN_FILENO) { // if input is coming from previous pipe redirect stdin
+                dup2(input_fd, STDIN_FILENO);
+                close(input_fd);
+            }
+            if (command->next != NULL) { // if not the last command redirect stdout to pipe
+                close(pipe_fds[0]);
+                dup2(pipe_fds[1], STDOUT_FILENO);
+                close(pipe_fds[1]);
+            }
+            resolve_path(command);  // execute command
+            exit(127);
+        }
+        else {
+            children++;   // count child
+            if (input_fd != STDIN_FILENO) {
+                close(input_fd);
+            }
+            if (command->next != NULL) {
+                close(pipe_fds[1]);
+                input_fd = pipe_fds[0];  // read the next command
+            }
+            else {
+                input_fd = STDIN_FILENO;
+            }
+            command = command->next;    // move to next command in pipeline
+        }
+    }
+    for (int i = 0; i < children; i++) {
+        wait(NULL);
+    }
+    return SUCCESS;
+}
 
 int process_command(struct command_t *command) {
   int r;
@@ -365,6 +410,9 @@ int process_command(struct command_t *command) {
         printf("-%s: %s: %s\n", sysname, command->name, strerror(errno));
       return SUCCESS;
     }
+  }
+  if (command->next != NULL) {
+    return run_pipeline(command);
   }
 
   pid_t pid = fork();
