@@ -396,6 +396,66 @@ static int run_pipeline(struct command_t *command) {
     return SUCCESS;
 }
 
+static int run_count(struct command_t *command) {
+  FILE *fp = stdin;              // default is stdin
+  int mode_lines = 1;
+  int mode_words = 1;
+  int mode_chars = 1;
+
+  for (int i = 1; command->args[i] != NULL; i++) { // check the mode
+    if (strcmp(command->args[i], "-l") == 0) { // line
+      mode_words = 0; mode_chars = 0;
+    } else if (strcmp(command->args[i], "-w") == 0) { // word
+      mode_lines = 0; mode_chars = 0;
+    } else if (strcmp(command->args[i], "-c") == 0) { // character
+      mode_lines = 0; mode_words = 0;
+    } else {
+      
+      fp = fopen(command->args[i], "r"); // open in file mode
+      if (!fp) {
+        printf("-%s: count: cannot open %s\n", sysname, command->args[i]);
+        return SUCCESS;
+      }
+    }
+  }
+
+  int lines = 0;
+  int words = 0;
+  int chars = 0;
+  int in_word = 0;
+
+  int ch;
+  while ((ch = fgetc(fp)) != EOF) { // count lines words and chars
+    chars++;
+
+    if (ch == '\n') lines++;
+
+    if (ch == ' ' || ch == '\n' || ch == '\t') {
+      in_word = 0;
+    } else {
+      if (!in_word) {
+        words++;
+        in_word = 1;
+      }
+    }
+  }
+
+  if (fp != stdin) {
+        fclose(fp);
+    }
+
+  if (mode_lines){
+      printf("Lines: %d\n", lines);
+  }
+  if (mode_words) {
+      printf("Words: %d\n", words);
+  }
+  if (mode_chars){
+        printf("Chars: %d\n", chars);
+  }
+  return SUCCESS;
+}
+
 int process_command(struct command_t *command) {
   int r;
   if (strcmp(command->name, "") == 0)
@@ -411,6 +471,9 @@ int process_command(struct command_t *command) {
         printf("-%s: %s: %s\n", sysname, command->name, strerror(errno));
       return SUCCESS;
     }
+  }
+  if (strcmp(command->name, "count") == 0) {
+     return run_count(command);
   }
   if (command->next != NULL) {
     return run_pipeline(command);
