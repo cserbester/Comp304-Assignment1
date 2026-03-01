@@ -371,6 +371,7 @@ static int run_pipeline(struct command_t *command) {
                 dup2(pipe_fds[1], STDOUT_FILENO);
                 close(pipe_fds[1]);
             }
+            rediriction_helper(command);
             resolve_path(command);  // execute command
             exit(127);
         }
